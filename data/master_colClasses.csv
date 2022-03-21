@@ -1,0 +1,2 @@
+mcode,stat.week,swim.dir,time.in,sex,length,time.out,species,age,lat,long,mesh.size,air.temp,water.temp,wind.sp,wind.dir,cloud.cov,capture.loc,deploy.ymd.hms,deploy.unix,det.hist,recap,final.fate,ff.ymd.hms,ff.unix,at.large.unix,at.large.dhm,spawn.group,spawn.stream,julian.day,year,secchi
+factor,factor,factor,character,factor,integer,character,factor,factor,numeric,numeric,factor,numeric,numeric,numeric,factor,integer,factor,character,integer,character,factor,factor,character,integer,integer,character,factor,factor,integer,factor,numeric

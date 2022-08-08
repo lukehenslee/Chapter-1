@@ -30,10 +30,10 @@ setwd("C:/Users/lhhenslee/Desktop/Luke/School/Thesis/Chapter1/data")
 # Import data ##################################################################
 # Import master mcode list
 # 'master_colClasses.csv' is just a list for 'colClasses' argument of read.csv() 
-col <- read.csv("master_colClasses.csv", header = T)
+col <- read.csv("data/master_colClasses.csv", header = T)
 
 # Import 'master_mcode.csv'
-tags <- read.csv("master_mcode.csv", colClasses = paste(col[1,]))
+tags <- read.csv("data/master_mcode.csv", colClasses = paste(col[1,]))
 
 # Data manipulation ####
   ## Final fates ####
@@ -253,10 +253,15 @@ coho_mod_dat <- cbind(coho_mod_dat, stock.multinom)
   
 # Predictions ####
   ## Pivot data 
+  harvest_proj <- read.csv('data/F604_project_catch.csv')
+
     harv <- harvest_proj %>% 
     pivot_longer(cols = c('M', 'F'), names_to = 'sex', values_to = 'abundance')
   
   harv$sex <- as.factor(harv$sex)
+  harv$year <- as.factor(harv$year)
+  harv$capture.loc <- as.factor(harv$capture.loc)
+  harv$julian.day <- yday(lubridate::mdy(harv$julian.day))
   
   # Predict with mclogit
   pred.mclogit <- predict(coho.mblogit, newdata = harv, type = 'response')
@@ -271,22 +276,70 @@ coho_mod_dat <- cbind(coho_mod_dat, stock.multinom)
   
   partition <- cbind(harv, pred.vglm)
 
-  partition$'Subdistrict 5' <- partition$abundance * partition$`5`
-  partition$'Subdistrict 6' <- partition$abundance * partition$`6`
+  partition$'Shaktoolik' <- partition$abundance * partition$`5`
+  partition$'Unalakleet' <- partition$abundance * partition$`6`
   partition$'Transitory' <- partition$abundance * partition$S4N  
 
   # Visualize abundance
   coho.fig <- partition %>% 
-    group_by(year, capture.loc) %>% 
-    summarize_at(vars(abundance, 'Subdistrict 5', 'Subdistrict 6', 'Transitory'), sum)
+    group_by(year, capture.loc, julian.day) %>% 
+    summarize_at(vars(abundance, 'Shaktoolik', 'Unalakleet', 'Transitory'), sum)
   
   coho.fig.long <- coho.fig %>% 
-    pivot_longer(cols = c('Subdistrict 5', 'Subdistrict 6', 'Transitory'),
+    pivot_longer(cols = c('Shaktoolik', 'Unalakleet', 'Transitory'),
                  names_to = 'Stock')
+  
+  sd <- c('5' = 'Shaktoolik subdistrict', '6' = 'Unalakleet subdistrict',
+          '2020' = '2020', '2021' = '2021')
+  coho.fig.long$Stock <- fct_relevel(coho.fig.long$Stock, 'Shaktoolik', 'Unalakleet')
+  
+  col.pal <- c("#FC8D62", "#8DA0CB", "#A6D854")
 
-  ggplot(coho.fig.long, aes(x = capture.loc, y = value, fill = Stock)) +
+  fig.part <- ggplot(subset(coho.fig.long, abundance > 55), aes(x = as.factor(julian.day), y = value, fill = Stock)) +
     geom_col() +
-    facet_wrap(~year)
+    facet_grid(capture.loc~year, scales = 'free_x', labeller = as_labeller(sd)) +
+    xlab("Day of year of landing") +
+    ylab("Coho landed") +
+    scale_fill_manual(values = col.pal) +
+    #set the limits and tick breaks for the y-axis
+    scale_y_continuous () +
+    scale_x_discrete(guide = guide_axis(angle = 90)) +
+    #adjust the order of the legend, make new labels, and select the symbol colors
+    #makes the figure background white without grid lines
+    theme_classic() +
+    theme (axis.title.y = element_text(size = 14, margin = margin(t = 0, r = 10, b = 0, l = 0), colour = "black"),
+           axis.title.x = element_text(size = 14, margin = margin(t = 10, r = 0, b = 0, l = 0), colour = "black"),
+           #set the font type
+           text = element_text(family = "Arial"),
+           #modify plot title, the B in this case
+           plot.title = element_text(face = "bold", family = "Times New Roman"),
+           #position the legend on the figure
+           
+           #adjust size of text for legend
+           
+           #margin for the plot
+           plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),
+           strip.background = element_blank(),
+           strip.text = element_text(size = 14),
+           #set size of the tick marks for y-axis
+           axis.ticks.y = element_line(size = 0.5),
+           #set size of the tick marks for x-axis
+           axis.ticks.x = element_line(size = 0.5),
+           #adjust length of the tick marks
+           axis.ticks.length = unit(0.2,"cm"),
+           #set size and location of the tick labels for the y axis
+           axis.text.y = element_text(colour = "black", size = 10, angle = 0, vjust = 0.5, hjust = 1,
+                                      margin = margin(t = 0, r = 5, b = 0, l = 0)),
+           #set size and location of the tick labels for the x axis
+           axis.text.x = element_text(colour = "black", size = 10, angle = 0, vjust = 0, hjust = 0.5,
+                                      margin = margin(t = 5, r = 0, b = 0, l = 0)),
+           #set the axis size, color, and end shape
+           axis.line = element_line(colour = "black", size = 0.5, lineend = "square"),
+           panel.spacing.y = unit(1, 'lines'))
+  
+  fig.part
+  
+  ggsave(fig.part, file = "figs/partition.png", width = 19, height = 15, units = "cm", dpi = 300)
   
   # Visualize proportions
   coho.fig.prop <- coho.fig.long
